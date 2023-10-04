@@ -7,6 +7,7 @@
     "@types/react-dom": "18.2.8",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "typescript": "^5.1.6",
     "react-webcam": "7.1.1",
     "tesseract.js": "^5.0.2"
   },
