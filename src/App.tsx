@@ -189,23 +189,26 @@ export const App = () => {
                 {imgs.length === 0 ? (
                   <div className="empty-gallery">[ nenhuma captura ainda ]</div>
                 ) : (
-                  imgs.map((img, idx) => (
-                    <React.Fragment key={idx}>
-                      <div className="result-item">
-                        <div className="result-index">
-                          #{String(idx + 1).padStart(2, '0')}
+                  [...imgs].reverse().map((img, idx) => {
+                    const num = imgs.length - idx;
+                    return (
+                      <React.Fragment key={num}>
+                        <div className="result-item">
+                          <div className="result-index">
+                            #{String(num).padStart(2, '0')}
+                          </div>
+                          <img
+                            src={img.base64}
+                            className="picture"
+                            alt={`captura ${num}`}
+                          />
+                          <div className="result-text">
+                            {img.texto.trim() || '(sem texto reconhecido)'}
+                          </div>
                         </div>
-                        <img
-                          src={img.base64}
-                          className="picture"
-                          alt={`captura ${idx + 1}`}
-                        />
-                        <div className="result-text">
-                          {img.texto.trim() || '(sem texto reconhecido)'}
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  ))
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </div>
             </div>
