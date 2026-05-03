@@ -4,35 +4,40 @@ import Tesseract from 'tesseract.js';
 
 import './style.css';
 
-export const App = () => {
-  const [deviceId, setDeviceId] = React.useState({});
-  const [imgs, setImgs] = React.useState<{texto: string; base64: any}[]>([]);
-  const [camera, setCamera] = React.useState(false);
-  const [visible, setVisible] = React.useState(false);
+type CapturedImage = {
+  base64: string;
+  texto: string;
+};
 
-  const webcamRef = React.useRef(null);
+export const App = () => {
+  const [deviceId, setDeviceId] = React.useState<string | undefined>(undefined);
+  const [imgs, setImgs] = React.useState<CapturedImage[]>([]);
+  const [rearCamera, setRearCamera] = React.useState(false);
+  const [visible, setVisible] = React.useState(false);
+  const [processing, setProcessing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const webcamRef = React.useRef<Webcam>(null);
 
   const capture = React.useCallback(() => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    
-    
-    Tesseract.recognize(imageSrc)
-      .then(result => {
-        const imgTxt: {data:{ text }} = result;
-        imgs.push({texto: imgTxt.data.text, base64: imageSrc});
-        setImgs([...imgs]);
-      })
-      .catch(error => console.log(error));
-    
-  }, [webcamRef]);
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (!imageSrc) return;
 
-  const handleDevices = React.useCallback(
-    (mediaDevices) => {
-      const devices = mediaDevices.filter(({ kind }) => kind === 'videoinput');
-      setDeviceId(devices.find((o) => o));
-    },
-    [setDeviceId]
-  );
+    setProcessing(true);
+    setError(null);
+
+    Tesseract.recognize(imageSrc, 'eng')
+      .then(({ data: { text } }) => {
+        setImgs(prev => [...prev, { texto: text, base64: imageSrc }]);
+      })
+      .catch(() => setError('Falha ao reconhecer texto na imagem.'))
+      .finally(() => setProcessing(false));
+  }, []);
+
+  const handleDevices = React.useCallback((mediaDevices: MediaDeviceInfo[]) => {
+    const videoDevice = mediaDevices.find(({ kind }) => kind === 'videoinput');
+    setDeviceId(videoDevice?.deviceId);
+  }, []);
 
   React.useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then(handleDevices);
@@ -40,12 +45,19 @@ export const App = () => {
 
   return (
     <>
-      <span>Camera</span>      
-      <button onClick={() => setVisible(!visible)}>Show</button>
-      <button onClick={() => setCamera(!camera)} disabled={!visible}>Switch</button>
-      <button onClick={capture} disabled={!visible}>Snapshot</button>
+      <span>Camera</span>
+      <button onClick={() => setVisible(v => !v)}>
+        {visible ? 'Esconder' : 'Mostrar'}
+      </button>
+      <button onClick={() => setRearCamera(c => !c)} disabled={!visible}>
+        Alternar câmera
+      </button>
+      <button onClick={capture} disabled={!visible || processing}>
+        {processing ? 'Processando...' : 'Snapshot'}
+      </button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <div>
-        {visible ? (
+        {visible && (
           <Webcam
             ref={webcamRef}
             id="webcam"
@@ -54,26 +66,20 @@ export const App = () => {
             screenshotFormat="image/png"
             videoConstraints={{
               width: 400,
-              deviceId: deviceId,
-              facingMode: camera ? 'environment' : 'user',
+              deviceId,
+              facingMode: rearCamera ? 'environment' : 'user',
             }}
-            forceScreenshotSourceSize={true}
+            forceScreenshotSourceSize
             onDoubleClick={capture}
           />
-        ) : (
-          <></>
         )}
       </div>
       <div>
-        {imgs.map((imgSrc, key) => (
-          <>
-            <img
-              id={key.toString()}
-              src={imgSrc.base64}
-              className="picture"
-            />
-            <span>{imgSrc.texto}</span>
-          </>
+        {imgs.map((img, idx) => (
+          <React.Fragment key={idx}>
+            <img src={img.base64} className="picture" alt={`captura ${idx + 1}`} />
+            <span>{img.texto}</span>
+          </React.Fragment>
         ))}
       </div>
     </>
