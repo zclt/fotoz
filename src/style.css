@@ -417,12 +417,139 @@ body {
   font-style: italic;
 }
 
+/* ─── Engine selector ────────────────────────────────────── */
+.engine-selector {
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 2px;
+  cursor: pointer;
+  border-bottom: 1px dotted #c0c0c0;
+}
+
+.radio-label:last-child {
+  border-bottom: none;
+}
+
+.radio-label input[type="radio"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #000080;
+}
+
+.radio-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.radio-name {
+  font-size: 11px;
+  font-family: 'Arial', sans-serif;
+  font-weight: bold;
+  color: #000000;
+}
+
+.radio-hint {
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+  color: #606060;
+  margin-top: 1px;
+}
+
+/* ─── Engine badge ───────────────────────────────────────── */
+.engine-badge {
+  font-size: 9px;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  padding: 1px 4px;
+  border-radius: 0;
+  flex-shrink: 0;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+
+.badge-tesseract     { background: #004000; color: #00ff00; }
+.badge-google-vision { background: #1a1a8c; color: #ffffff; }
+.badge-claude        { background: #5b0000; color: #ffcc00; }
+
+/* ─── Toolbar engine indicator ───────────────────────────── */
+.toolbar-engine-badge {
+  font-size: 11px;
+  font-family: 'Arial', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  color: #000000;
+}
+
+/* ─── API Key input ──────────────────────────────────────── */
+.key-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #808080;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.key-label {
+  font-size: 10px;
+  font-family: 'Arial', sans-serif;
+  font-weight: bold;
+  color: #000080;
+  letter-spacing: 0.5px;
+}
+
+.win-input {
+  background: #ffffff;
+  border-top: 1px solid #808080;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+  padding: 2px 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  width: 100%;
+  outline: none;
+}
+
+.win-input:focus {
+  outline: 1px dotted #000080;
+  outline-offset: -2px;
+}
+
+.key-warning {
+  font-size: 9px;
+  font-family: 'Courier New', monospace;
+  color: #884400;
+  background: #ffffc0;
+  padding: 2px 4px;
+  border: 1px solid #c0c000;
+}
+
+/* ─── Result item ────────────────────────────────────────── */
 .result-item {
   display: flex;
   gap: 6px;
   padding: 5px 2px;
   border-bottom: 1px dotted #808080;
   align-items: flex-start;
+}
+
+.result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
 }
 
 .result-index {

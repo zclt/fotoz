@@ -1,10 +1,10 @@
 import React from 'react';
 import Webcam from 'react-webcam';
-import Tesseract from 'tesseract.js';
 
+import { OcrEngine, ENGINE_META, runOcr } from './ocr';
 import './style.css';
 
-type CapturedImage = { base64: string; texto: string };
+type CapturedImage = { base64: string; texto: string; engine: OcrEngine };
 type OcrStatus = 'idle' | 'processing' | 'success' | 'error';
 
 const STATUS_LABEL: Record<OcrStatus, string> = {
@@ -13,6 +13,16 @@ const STATUS_LABEL: Record<OcrStatus, string> = {
   success: 'CONCLUÍDO',
   error: 'ERRO',
 };
+
+const ENGINES: OcrEngine[] = ['tesseract', 'google-vision', 'claude'];
+
+function loadKey(engine: OcrEngine): string {
+  return localStorage.getItem(`fotoz-key-${engine}`) ?? '';
+}
+
+function saveKey(engine: OcrEngine, key: string) {
+  localStorage.setItem(`fotoz-key-${engine}`, key);
+}
 
 export const App = () => {
   const [deviceId, setDeviceId] = React.useState<string | undefined>(undefined);
@@ -26,7 +36,24 @@ export const App = () => {
   const [lastOcrTime, setLastOcrTime] = React.useState('--:--:--');
   const [lastCharCount, setLastCharCount] = React.useState(0);
 
+  const [engine, setEngine] = React.useState<OcrEngine>(
+    () => (localStorage.getItem('fotoz-engine') as OcrEngine | null) ?? 'tesseract'
+  );
+  const [apiKey, setApiKey] = React.useState(() => loadKey(engine));
+
   const webcamRef = React.useRef<Webcam>(null);
+
+  const handleEngineChange = (next: OcrEngine) => {
+    setEngine(next);
+    localStorage.setItem('fotoz-engine', next);
+    setApiKey(loadKey(next));
+    setError(null);
+  };
+
+  const handleApiKeyChange = (key: string) => {
+    setApiKey(key);
+    saveKey(engine, key);
+  };
 
   const capture = React.useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
@@ -36,19 +63,22 @@ export const App = () => {
     setOcrStatus('processing');
     setError(null);
 
-    Tesseract.recognize(imageSrc, 'eng')
-      .then(({ data: { text } }) => {
-        setImgs(prev => [...prev, { texto: text, base64: imageSrc }]);
+    const activeKey = loadKey(engine);
+
+    runOcr(engine, imageSrc, activeKey || undefined)
+      .then((text) => {
+        setImgs(prev => [...prev, { texto: text, base64: imageSrc, engine }]);
         setLastOcrTime(new Date().toLocaleTimeString('pt-BR'));
         setLastCharCount(text.trim().length);
         setOcrStatus('success');
       })
-      .catch(() => {
-        setError('ERRO: Falha ao processar imagem.');
+      .catch((err: Error) => {
+        setError(`ERRO: ${err.message}`);
         setOcrStatus('error');
       })
       .finally(() => setProcessing(false));
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine]);
 
   const handleDevices = React.useCallback((mediaDevices: MediaDeviceInfo[]) => {
     const videoDevice = mediaDevices.find(({ kind }) => kind === 'videoinput');
@@ -60,12 +90,14 @@ export const App = () => {
     navigator.mediaDevices.enumerateDevices().then(handleDevices);
   }, [handleDevices]);
 
+  const meta = ENGINE_META[engine];
+
   return (
     <div className="desktop">
 
       <div className="marquee-bar">
         <div className="marquee-text">
-          ★ FOTOZ v1.0 ★ POWERED BY TESSERACT.JS WASM ★ OCR TECHNOLOGY FOR THE WEB ★ CAPTURE • RECOGNIZE • DISPLAY ★ FOTOZ v1.0 ★ POWERED BY TESSERACT.JS WASM ★ OCR TECHNOLOGY FOR THE WEB ★
+          ★ FOTOZ v1.0 ★ POWERED BY TESSERACT.JS WASM ★ GOOGLE VISION API ★ CLAUDE HAIKU ★ OCR TECHNOLOGY FOR THE WEB ★ CAPTURE • RECOGNIZE • DISPLAY ★ FOTOZ v1.0 ★
         </div>
       </div>
 
@@ -98,6 +130,11 @@ export const App = () => {
           <button className="win-btn capture-btn" onClick={capture} disabled={!visible || processing}>
             {processing ? '⌛ Processando...' : '📸 Snapshot'}
           </button>
+          <div className="toolbar-sep" />
+          <span className="toolbar-engine-badge badge-{engine}">
+            <span className={`engine-badge badge-${engine}`}>{meta.badge}</span>
+            {meta.label}
+          </span>
         </div>
 
         {error && <div className="error-bar">{error}</div>}
@@ -132,7 +169,7 @@ export const App = () => {
               </div>
               {processing && (
                 <div className="progress-wrap">
-                  <div className="progress-label">⌛ PROCESSANDO OCR...</div>
+                  <div className="progress-label">⌛ PROCESSANDO OCR [{meta.label}]...</div>
                   <div className="progress-bar">
                     <div className="progress-fill" />
                   </div>
@@ -142,6 +179,7 @@ export const App = () => {
           </div>
 
           <div className="sidebar">
+
             <div className="panel">
               <div className="panel-title">◈ PAINEL DE CONTROLE</div>
               <table className="info-table">
@@ -177,10 +215,52 @@ export const App = () => {
                   </tr>
                   <tr>
                     <td className="info-key">MOTOR</td>
-                    <td className="info-val">Tesseract.js WASM</td>
+                    <td className="info-val">{meta.label}</td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <div className="panel">
+              <div className="panel-title">⚙ MOTOR OCR</div>
+              <div className="engine-selector">
+                {ENGINES.map(eng => (
+                  <label key={eng} className="radio-label">
+                    <input
+                      type="radio"
+                      name="engine"
+                      value={eng}
+                      checked={engine === eng}
+                      onChange={() => handleEngineChange(eng)}
+                    />
+                    <span className={`engine-badge badge-${eng}`}>
+                      {ENGINE_META[eng].badge}
+                    </span>
+                    <span className="radio-text">
+                      <span className="radio-name">{ENGINE_META[eng].label}</span>
+                      <span className="radio-hint">{ENGINE_META[eng].hint}</span>
+                    </span>
+                  </label>
+                ))}
+
+                {meta.needsKey && (
+                  <div className="key-section">
+                    <label className="key-label">
+                      API Key — {meta.label}
+                    </label>
+                    <input
+                      type="password"
+                      className="win-input"
+                      placeholder="Cole sua chave aqui..."
+                      value={apiKey}
+                      onChange={e => handleApiKeyChange(e.target.value)}
+                    />
+                    <div className="key-warning">
+                      ⚠ Chave salva localmente. Use apenas para testes.
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="panel results-panel">
@@ -202,8 +282,13 @@ export const App = () => {
                             className="picture"
                             alt={`captura ${num}`}
                           />
-                          <div className="result-text">
-                            {img.texto.trim() || '(sem texto reconhecido)'}
+                          <div className="result-body">
+                            <span className={`engine-badge badge-${img.engine}`}>
+                              {ENGINE_META[img.engine].badge}
+                            </span>
+                            <div className="result-text">
+                              {img.texto.trim() || '(sem texto reconhecido)'}
+                            </div>
                           </div>
                         </div>
                       </React.Fragment>
@@ -212,17 +297,19 @@ export const App = () => {
                 )}
               </div>
             </div>
-          </div>
 
+          </div>
         </div>
       </div>
 
       <div className="status-bar">
         <span className="status-segment">✓ Pronto</span>
         <span className="status-segment">
+          Motor: <strong>{meta.label}</strong>
+        </span>
+        <span className="status-segment">
           Visitantes: <strong>{imgs.length}</strong>
         </span>
-        <span className="status-segment">Melhor visto em: Netscape Navigator 4.0</span>
         <span className="status-segment">© 1997 FOTOZ Corp.</span>
       </div>
 
