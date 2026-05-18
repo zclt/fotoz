@@ -11,21 +11,19 @@ vi.mock('tesseract.js', () => ({
   },
 }));
 
-vi.mock('react-webcam', async () => {
-  return {
-    default: React.forwardRef(function MockWebcam(
-      _props: Record<string, unknown>,
-      ref: React.Ref<{ getScreenshot: () => string }>
-    ) {
-      React.useImperativeHandle(ref, () => ({
-        getScreenshot: () => 'data:image/png;base64,mockimage',
-      }));
-      return React.createElement('video', { 'data-testid': 'webcam' });
-    }),
-  };
-});
+vi.mock('react-webcam', async () => ({
+  default: React.forwardRef(function MockWebcam(
+    _props: Record<string, unknown>,
+    ref: React.Ref<{ getScreenshot: () => string }>
+  ) {
+    React.useImperativeHandle(ref, () => ({
+      getScreenshot: () => 'data:image/png;base64,mockimage',
+    }));
+    return React.createElement('video', { 'data-testid': 'webcam' });
+  }),
+}));
 
-const mockMediaDevices = () => {
+beforeEach(() => {
   Object.defineProperty(navigator, 'mediaDevices', {
     value: {
       enumerateDevices: vi.fn().mockResolvedValue([
@@ -35,52 +33,48 @@ const mockMediaDevices = () => {
     configurable: true,
     writable: true,
   });
-};
+  vi.clearAllMocks();
+});
 
 describe('App', () => {
-  beforeEach(() => {
-    mockMediaDevices();
-    vi.clearAllMocks();
-  });
-
   it('renderiza sem câmera visível por padrão', () => {
     render(<App />);
     expect(screen.queryByTestId('webcam')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mostrar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Mostrar/ })).toBeInTheDocument();
   });
 
   it('exibe a câmera ao clicar em Mostrar', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar' }));
+    await user.click(screen.getByRole('button', { name: /Mostrar/ }));
 
     expect(screen.getByTestId('webcam')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Esconder' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Esconder/ })).toBeInTheDocument();
   });
 
   it('esconde a câmera ao clicar em Esconder', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar' }));
-    await user.click(screen.getByRole('button', { name: 'Esconder' }));
+    await user.click(screen.getByRole('button', { name: /Mostrar/ }));
+    await user.click(screen.getByRole('button', { name: /Esconder/ }));
 
     expect(screen.queryByTestId('webcam')).not.toBeInTheDocument();
   });
 
   it('Snapshot está desabilitado quando câmera está oculta', () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Snapshot' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Snapshot/ })).toBeDisabled();
   });
 
   it('Snapshot está habilitado quando câmera está visível', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar' }));
+    await user.click(screen.getByRole('button', { name: /Mostrar/ }));
 
-    expect(screen.getByRole('button', { name: 'Snapshot' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /Snapshot/ })).not.toBeDisabled();
   });
 
   it('executa OCR ao capturar e exibe o texto reconhecido', async () => {
@@ -88,8 +82,8 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar' }));
-    await user.click(screen.getByRole('button', { name: 'Snapshot' }));
+    await user.click(screen.getByRole('button', { name: /Mostrar/ }));
+    await user.click(screen.getByRole('button', { name: /Snapshot/ }));
 
     await waitFor(() => {
       expect(screen.getByText('Hello World')).toBeInTheDocument();
@@ -108,18 +102,38 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Mostrar' }));
-    await user.click(screen.getByRole('button', { name: 'Snapshot' }));
+    await user.click(screen.getByRole('button', { name: /Mostrar/ }));
+    await user.click(screen.getByRole('button', { name: /Snapshot/ }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Falha ao reconhecer texto na imagem.')
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Falha ao processar imagem/)).toBeInTheDocument();
     });
   });
 
   it('"Alternar câmera" está desabilitado quando câmera está oculta', () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: 'Alternar câmera' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Alternar/ })).toBeDisabled();
+  });
+
+  it('painel de controle exibe status inicial AGUARDANDO', () => {
+    render(<App />);
+    expect(screen.getByText('AGUARDANDO')).toBeInTheDocument();
+  });
+
+  it('painel de controle exibe contador LED zerado', () => {
+    render(<App />);
+    expect(screen.getByText('0000')).toBeInTheDocument();
+  });
+
+  it('contador incrementa após captura bem-sucedida', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: /Mostrar/ }));
+    await user.click(screen.getByRole('button', { name: /Snapshot/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('0001')).toBeInTheDocument();
+    });
   });
 });
